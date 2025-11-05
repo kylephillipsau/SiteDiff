@@ -1,0 +1,47 @@
+{
+  "sourceServer": {
+    "ip": "192.168.1.100",
+    "port": 80,
+    "protocol": "http"
+  },
+  "destinationServer": {
+    "ip": "192.168.1.101",
+    "port": 80,
+    "protocol": "http"
+  },
+  "domains": [
+    {
+      "domain": "example.com",
+      "user": "exampleuser",
+      "enabled": true
+    },
+    {
+      "domain": "example2.com",
+      "user": "example2user",
+      "enabled": true
+    }
+  ],
+  "validation": {
+    "htmlStructure": true,
+    "textContent": true,
+    "images": true,
+    "links": true
+  },
+  "screenshot": {
+    "enabled": true,
+    "threshold": 0.1,
+    "fullPage": true
+  },
+  "output": {
+    "directory": "./output",
+    "htmlReport": true,
+    "jsonReport": true,
+    "screenshotArtifacts": true
+  },
+  "crawler": {
+    "maxPages": 50,
+    "timeout": 30000,
+    "waitForNetworkIdle": true
+  },
+  "parallel": 3
+}

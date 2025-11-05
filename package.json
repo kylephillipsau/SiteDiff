@@ -1,0 +1,45 @@
+{
+  "name": "sitediff",
+  "version": "1.0.0",
+  "description": "Playwright-based tool for validating cPanel migrations by comparing domains before and after transfer",
+  "main": "dist/index.js",
+  "bin": {
+    "sitediff": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "watch": "tsc --watch",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "cpanel",
+    "migration",
+    "validation",
+    "playwright",
+    "screenshot",
+    "comparison"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@playwright/test": "^1.48.0",
+    "commander": "^12.1.0",
+    "pixelmatch": "^6.0.0",
+    "pngjs": "^7.0.0",
+    "winston": "^3.15.0",
+    "chalk": "^4.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.8.6",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/pngjs": "^6.0.5",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
