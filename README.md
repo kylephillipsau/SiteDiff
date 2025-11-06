@@ -4,6 +4,7 @@ A Playwright-based tool for validating cPanel migrations by comparing domains be
 
 ## Features
 
+- **Baseline/Compare Workflow**: Create a baseline from live sites before migration, then compare after migration
 - **Smart Page Discovery**: Automatically crawls domains to discover key pages (homepage, contact, blog/news, product/service)
 - **Direct IP Access**: Compare sites on different servers using direct IP access with cPanel user paths (no DNS changes required)
 - **Comprehensive Validation**:
@@ -42,23 +43,132 @@ npm run build
 npx playwright install
 ```
 
+## Usage Modes
+
+SiteDiff supports two workflows for validation:
+
+### 1. Baseline/Compare Workflow (Recommended)
+
+This is the recommended approach for real-world migrations where you need to compare before and after DNS migration.
+
+**Workflow:**
+1. **Before Migration** - Create a baseline from the live site (via DNS)
+2. Migrate your sites to the new cPanel server
+3. **After Migration** - Compare the new server against the saved baseline
+
+**Benefits:**
+- No need to access the old server after migration
+- Compare against the exact state before migration
+- Works even after DNS has been updated
+
+### 2. Server-Compare Mode
+
+Directly compare two servers by IP address (traditional mode).
+
+**Use case:** When both servers are accessible simultaneously and you want real-time comparison.
+
 ## Quick Start
 
-### 1. Create a Configuration File
+### Baseline/Compare Workflow
+
+#### Step 1: Create a Configuration File
 
 ```bash
 npm run dev -- init -o config/myconfig.json
 ```
 
-Or create one manually (see Configuration section below).
+Edit `config/myconfig.json`:
 
-### 2. Edit the Configuration
+```json
+{
+  "mode": "baseline",
+  "baselineDir": "./baselines",
+  "domains": [
+    { "domain": "example.com", "enabled": true },
+    { "domain": "example2.com", "enabled": true }
+  ],
+  "destinationServer": {
+    "ip": "192.168.1.101",
+    "port": 80,
+    "protocol": "http"
+  },
+  "validation": { ... },
+  "screenshot": { ... },
+  "output": { ... }
+}
+```
 
-Edit `config/myconfig.json` with your source/destination server IPs and domains to test.
+**Note:** For baseline mode, domains are accessed via DNS (https://example.com). The `user` field is only needed for the destination server comparison.
+
+#### Step 2: Create Baseline (Before Migration)
+
+```bash
+npm run dev -- baseline -c config/myconfig.json
+```
+
+This will:
+- Access each domain via DNS (the live site)
+- Crawl and discover pages
+- Capture screenshots and content
+- Save baseline data to `./baselines/`
+
+#### Step 3: Compare Against Baseline (After Migration)
+
+Update your config with the destination server and user info:
+
+```json
+{
+  "mode": "compare",
+  "baselineDir": "./baselines",
+  "domains": [
+    { "domain": "example.com", "user": "exampleuser", "enabled": true },
+    { "domain": "example2.com", "user": "example2user", "enabled": true }
+  ],
+  "destinationServer": {
+    "ip": "192.168.1.101",
+    "port": 80,
+    "protocol": "http"
+  },
+  ...
+}
+```
+
+Run the comparison:
+
+```bash
+npm run dev -- compare -c config/myconfig.json
+```
+
+### Server-Compare Mode (Traditional)
+
+#### Step 1: Create Configuration
+
+Edit `config/myconfig.json`:
+
+```json
+{
+  "mode": "server-compare",
+  "sourceServer": {
+    "ip": "192.168.1.100",
+    "port": 80,
+    "protocol": "http"
+  },
+  "destinationServer": {
+    "ip": "192.168.1.101",
+    "port": 80,
+    "protocol": "http"
+  },
+  "domains": [
+    { "domain": "example.com", "user": "exampleuser", "enabled": true },
+    { "domain": "example2.com", "user": "example2user", "enabled": true }
+  ],
+  ...
+}
+```
 
 **Important**: For each domain, you must specify the `user` field. This is required for accessing sites on cPanel servers via the `~user` path format.
 
-### 3. Run the Comparison
+#### Step 2: Run Comparison
 
 ```bash
 npm run dev -- compare -c config/myconfig.json

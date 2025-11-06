@@ -17,10 +17,108 @@ program
   .version('1.0.0');
 
 program
-  .command('compare')
-  .description('Compare domains between source and destination servers')
+  .command('baseline')
+  .description('Create baseline from live domains via DNS')
   .requiredOption('-c, --config <path>', 'Path to configuration file')
   .option('-o, --output <path>', 'Output directory (overrides config)')
+  .option('-b, --baseline-dir <path>', 'Baseline directory (overrides config)')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .option('--log-level <level>', 'Set log level (debug, info, warn, error)', 'info')
+  .action(async (options) => {
+    try {
+      // Set log level
+      if (options.verbose) {
+        Logger.setLevel('debug');
+      } else if (options.logLevel) {
+        Logger.setLevel(options.logLevel);
+      }
+
+      console.log(chalk.blue.bold('\n📸 SiteDiff - Creating Baseline\n'));
+
+      // Load configuration
+      logger.info(`Loading configuration from: ${options.config}`);
+      const config = ConfigLoader.load(options.config);
+
+      // Set mode to baseline
+      config.mode = 'baseline';
+
+      // Override directories if specified
+      if (options.output) {
+        config.output.directory = options.output;
+      }
+      if (options.baselineDir) {
+        config.baselineDir = options.baselineDir;
+      }
+
+      // Set default baseline directory if not specified
+      if (!config.baselineDir) {
+        config.baselineDir = './baselines';
+      }
+
+      // Ensure directories exist
+      if (!fs.existsSync(config.output.directory)) {
+        fs.mkdirSync(config.output.directory, { recursive: true });
+      }
+      if (!fs.existsSync(config.baselineDir)) {
+        fs.mkdirSync(config.baselineDir, { recursive: true });
+      }
+
+      // Add file logging
+      Logger.addFileTransport(config.output.directory);
+
+      // Display configuration summary
+      console.log(chalk.cyan('Configuration:'));
+      console.log(`  Mode: baseline`);
+      console.log(`  Domains: ${config.domains.length}`);
+      console.log(`  Baseline Directory: ${config.baselineDir}`);
+      console.log(`  Output: ${config.output.directory}\n`);
+
+      // Run baseline creation
+      console.log(chalk.yellow('Creating baseline from live sites...\n'));
+      const startTime = Date.now();
+
+      const engine = new ComparisonEngine(config);
+      const results = await engine.run();
+
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+      // Display summary
+      const summary = {
+        totalDomains: results.length,
+        successfulDomains: results.filter((r) => r.passed).length,
+        failedDomains: results.filter((r) => !r.passed).length,
+        totalPages: results.reduce((sum, r) => sum + r.summary.totalPages, 0),
+      };
+
+      console.log(chalk.blue.bold('\n📊 Summary:\n'));
+      console.log(`  Duration: ${duration}s`);
+      console.log(`  Domains: ${chalk.green(summary.successfulDomains)} successful, ${chalk.red(summary.failedDomains)} failed (${summary.totalDomains} total)`);
+      console.log(`  Pages captured: ${summary.totalPages}`);
+      console.log(`  Baseline saved to: ${config.baselineDir}`);
+
+      if (summary.failedDomains > 0) {
+        console.log(chalk.yellow.bold('\n⚠️  Some domains failed to create baseline\n'));
+        process.exit(1);
+      } else {
+        console.log(chalk.green.bold('\n✅ Baseline created successfully\n'));
+        console.log(chalk.cyan('Next steps:'));
+        console.log(chalk.white(`  1. Migrate your sites to the new server`));
+        console.log(chalk.white(`  2. Run: sitediff compare -c ${options.config}\n`));
+        process.exit(0);
+      }
+    } catch (error) {
+      console.error(chalk.red.bold('\n❌ Error:'), error);
+      logger.error(`Command failed: ${error}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('compare')
+  .description('Compare domains between servers or against baseline')
+  .requiredOption('-c, --config <path>', 'Path to configuration file')
+  .option('-o, --output <path>', 'Output directory (overrides config)')
+  .option('-b, --baseline-dir <path>', 'Baseline directory (overrides config, enables compare mode)')
   .option('-v, --verbose', 'Enable verbose logging')
   .option('--log-level <level>', 'Set log level (debug, info, warn, error)', 'info')
   .action(async (options) => {
@@ -38,6 +136,16 @@ program
       logger.info(`Loading configuration from: ${options.config}`);
       const config = ConfigLoader.load(options.config);
 
+      // Determine mode
+      if (options.baselineDir || config.baselineDir) {
+        config.mode = 'compare';
+        if (options.baselineDir) {
+          config.baselineDir = options.baselineDir;
+        }
+      } else if (!config.mode) {
+        config.mode = 'server-compare';
+      }
+
       // Override output directory if specified
       if (options.output) {
         config.output.directory = options.output;
@@ -53,8 +161,16 @@ program
 
       // Display configuration summary
       console.log(chalk.cyan('Configuration:'));
-      console.log(`  Source Server: ${config.sourceServer.protocol}://${config.sourceServer.ip}:${config.sourceServer.port}`);
-      console.log(`  Destination Server: ${config.destinationServer.protocol}://${config.destinationServer.ip}:${config.destinationServer.port}`);
+      console.log(`  Mode: ${config.mode}`);
+
+      if (config.mode === 'server-compare') {
+        console.log(`  Source Server: ${config.sourceServer?.protocol}://${config.sourceServer?.ip}:${config.sourceServer?.port}`);
+        console.log(`  Destination Server: ${config.destinationServer?.protocol}://${config.destinationServer?.ip}:${config.destinationServer?.port}`);
+      } else if (config.mode === 'compare') {
+        console.log(`  Baseline Directory: ${config.baselineDir}`);
+        console.log(`  Destination Server: ${config.destinationServer?.protocol}://${config.destinationServer?.ip}:${config.destinationServer?.port}`);
+      }
+
       console.log(`  Domains: ${config.domains.length}`);
       console.log(`  Output: ${config.output.directory}`);
       console.log(`  Parallel: ${config.parallel}\n`);

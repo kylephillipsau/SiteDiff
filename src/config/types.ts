@@ -59,11 +59,18 @@ export interface CrawlerSettings {
 }
 
 /**
+ * Comparison mode
+ */
+export type ComparisonMode = 'server-compare' | 'baseline' | 'compare';
+
+/**
  * Main configuration
  */
 export interface SiteDiffConfig {
-  sourceServer: ServerConfig;
-  destinationServer: ServerConfig;
+  mode?: ComparisonMode; // Default: 'server-compare' for legacy compatibility
+  sourceServer?: ServerConfig; // Optional in baseline/compare modes
+  destinationServer?: ServerConfig; // Optional in baseline/compare modes
+  baselineDir?: string; // Directory for baseline data (required for baseline/compare modes)
   domains: DomainConfig[];
   validation: ValidationSettings;
   screenshot: ScreenshotSettings;
@@ -168,4 +175,36 @@ export interface ComparisonReport {
     passedPages: number;
     failedPages: number;
   };
+}
+
+/**
+ * Baseline page data
+ */
+export interface BaselinePageData {
+  page: DiscoveredPage;
+  url: string;
+  timestamp: string;
+  screenshot?: string; // Path to screenshot
+  htmlContent?: string; // Saved HTML content for validation
+  textContent?: string; // Saved text content
+  images?: Array<{ src: string; alt: string }>;
+  links?: Array<{ href: string; text: string }>;
+}
+
+/**
+ * Baseline data for a domain
+ */
+export interface BaselineDomainData {
+  domain: string;
+  timestamp: string;
+  discoveredPages: DiscoveredPage[];
+  pageData: BaselinePageData[];
+}
+
+/**
+ * Complete baseline
+ */
+export interface Baseline {
+  timestamp: string;
+  domains: BaselineDomainData[];
 }

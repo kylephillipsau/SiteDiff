@@ -107,6 +107,49 @@ export class ServerManager {
   }
 
   /**
+   * Navigate directly to a domain via DNS (for baseline/compare modes)
+   *
+   * This method accesses the domain directly using DNS resolution, suitable for:
+   * - Creating baselines of live sites before migration
+   * - Comparing after DNS has been updated post-migration
+   */
+  static async navigateToDomain(
+    page: Page,
+    domain: string,
+    path: string = '/',
+    protocol: 'http' | 'https' = 'https'
+  ): Promise<void> {
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const domainUrl = `${protocol}://${domain}${cleanPath}`;
+
+    logger.debug(`Navigating to ${domainUrl} via DNS`);
+
+    try {
+      await page.goto(domainUrl, {
+        waitUntil: 'networkidle',
+        timeout: 30000,
+      });
+
+      logger.debug(`Successfully loaded ${domainUrl}`);
+    } catch (error) {
+      logger.error(`Failed to load ${domainUrl}: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Build direct domain URL (for baseline/compare modes)
+   */
+  static buildDomainUrl(
+    domain: string,
+    path: string = '/',
+    protocol: 'http' | 'https' = 'https'
+  ): string {
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${protocol}://${domain}${cleanPath}`;
+  }
+
+  /**
    * Configure page for server access
    */
   static async configurePage(page: Page, _domain: string): Promise<void> {
