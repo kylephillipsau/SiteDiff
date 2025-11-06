@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import sharp from 'sharp';
 import { DomainComparisonResult, PageComparisonResult } from '../config/types';
 import { logger } from '../utils/Logger';
 
@@ -10,7 +11,7 @@ export class HtmlReporter {
   /**
    * Generate HTML report
    */
-  static generate(results: DomainComparisonResult[], outputDir: string): string {
+  static async generate(results: DomainComparisonResult[], outputDir: string): Promise<string> {
     logger.info('Generating HTML report');
 
     const timestamp = new Date().toISOString();
@@ -31,8 +32,17 @@ export class HtmlReporter {
       fs.mkdirSync(reportsDir, { recursive: true });
     }
 
+    // Compress screenshots for HTML report
+    logger.info('Compressing screenshots for HTML report...');
+    const compressedDir = path.join(outputDir, 'screenshots', 'compressed');
+    if (!fs.existsSync(compressedDir)) {
+      fs.mkdirSync(compressedDir, { recursive: true });
+    }
+
+    await this.compressScreenshots(results, compressedDir);
+
     // Build HTML with report directory for relative paths
-    const html = this.buildHtml(results, summary, timestamp, reportsDir);
+    const html = this.buildHtml(results, summary, timestamp, reportsDir, compressedDir);
 
     // Generate filename
     const filename = `sitediff-report-${Date.now()}.html`;
@@ -47,13 +57,80 @@ export class HtmlReporter {
   }
 
   /**
+   * Compress all screenshots for HTML report
+   */
+  private static async compressScreenshots(
+    results: DomainComparisonResult[],
+    compressedDir: string
+  ): Promise<void> {
+    const compressionTasks: Promise<void>[] = [];
+
+    for (const domainResult of results) {
+      for (const pageResult of domainResult.pageResults) {
+        if (pageResult.screenshot) {
+          // Compress source screenshot
+          if (pageResult.screenshot.sourceScreenshot && fs.existsSync(pageResult.screenshot.sourceScreenshot)) {
+            compressionTasks.push(
+              this.compressImage(pageResult.screenshot.sourceScreenshot, compressedDir)
+            );
+          }
+
+          // Compress destination screenshot
+          if (pageResult.screenshot.destinationScreenshot && fs.existsSync(pageResult.screenshot.destinationScreenshot)) {
+            compressionTasks.push(
+              this.compressImage(pageResult.screenshot.destinationScreenshot, compressedDir)
+            );
+          }
+
+          // Compress diff screenshot
+          if (pageResult.screenshot.diffScreenshot && fs.existsSync(pageResult.screenshot.diffScreenshot)) {
+            compressionTasks.push(
+              this.compressImage(pageResult.screenshot.diffScreenshot, compressedDir)
+            );
+          }
+        }
+      }
+    }
+
+    await Promise.all(compressionTasks);
+    logger.info(`Compressed ${compressionTasks.length} screenshots`);
+  }
+
+  /**
+   * Compress a single image
+   */
+  private static async compressImage(imagePath: string, compressedDir: string): Promise<void> {
+    try {
+      const filename = path.basename(imagePath);
+      const compressedPath = path.join(compressedDir, filename);
+
+      // Skip if already compressed
+      if (fs.existsSync(compressedPath)) {
+        return;
+      }
+
+      // Compress to JPEG with 80% quality and max width of 1200px
+      await sharp(imagePath)
+        .resize(1200, null, {
+          withoutEnlargement: true,
+          fit: 'inside'
+        })
+        .jpeg({ quality: 80 })
+        .toFile(compressedPath.replace('.png', '.jpg'));
+    } catch (error) {
+      logger.warn(`Failed to compress ${imagePath}: ${error}`);
+    }
+  }
+
+  /**
    * Build HTML content
    */
   private static buildHtml(
     results: DomainComparisonResult[],
     summary: any,
     timestamp: string,
-    reportDir: string
+    reportDir: string,
+    compressedDir: string
   ): string {
     return `
 <!DOCTYPE html>
@@ -332,7 +409,7 @@ export class HtmlReporter {
       </div>
     </div>
 
-    ${results.map((result) => this.buildDomainSection(result, reportDir)).join('\n')}
+    ${results.map((result) => this.buildDomainSection(result, reportDir, compressedDir)).join('\n')}
   </div>
 
   <div id="imageModal" class="modal">
@@ -371,7 +448,7 @@ export class HtmlReporter {
   /**
    * Build domain section HTML
    */
-  private static buildDomainSection(result: DomainComparisonResult, reportDir: string): string {
+  private static buildDomainSection(result: DomainComparisonResult, reportDir: string, compressedDir: string): string {
     return `
     <div class="domain-section">
       <div class="domain-header">
@@ -383,7 +460,7 @@ export class HtmlReporter {
       <p><strong>Source:</strong> ${result.sourceServer.ip} | <strong>Destination:</strong> ${result.destinationServer.ip}</p>
       <p><strong>Pages Tested:</strong> ${result.summary.totalPages} | <strong>Passed:</strong> ${result.summary.passedPages} | <strong>Failed:</strong> ${result.summary.failedPages}</p>
 
-      ${result.pageResults.map((page) => this.buildPageResult(page, reportDir)).join('\n')}
+      ${result.pageResults.map((page) => this.buildPageResult(page, reportDir, compressedDir)).join('\n')}
     </div>
     `;
   }
@@ -391,7 +468,7 @@ export class HtmlReporter {
   /**
    * Build page result HTML
    */
-  private static buildPageResult(page: PageComparisonResult, reportDir: string): string {
+  private static buildPageResult(page: PageComparisonResult, reportDir: string, compressedDir: string): string {
     const screenshotHtml = page.screenshot
       ? `
       <div class="screenshots">
@@ -399,15 +476,15 @@ export class HtmlReporter {
         <div class="screenshot-grid">
           <div class="screenshot-item">
             <div class="screenshot-label">Source</div>
-            <img src="${path.relative(reportDir, page.screenshot.sourceScreenshot).replace(/\\/g, '/')}" alt="Source">
+            <img src="${this.getCompressedImagePath(page.screenshot.sourceScreenshot, reportDir, compressedDir)}" alt="Source">
           </div>
           <div class="screenshot-item">
             <div class="screenshot-label">Destination</div>
-            <img src="${path.relative(reportDir, page.screenshot.destinationScreenshot).replace(/\\/g, '/')}" alt="Destination">
+            <img src="${this.getCompressedImagePath(page.screenshot.destinationScreenshot, reportDir, compressedDir)}" alt="Destination">
           </div>
           <div class="screenshot-item">
             <div class="screenshot-label">Difference (${(page.screenshot.diffPercentage * 100).toFixed(2)}%)</div>
-            <img src="${path.relative(reportDir, page.screenshot.diffScreenshot || '').replace(/\\/g, '/')}" alt="Diff">
+            <img src="${this.getCompressedImagePath(page.screenshot.diffScreenshot || '', reportDir, compressedDir)}" alt="Diff">
           </div>
         </div>
       </div>
@@ -461,6 +538,19 @@ export class HtmlReporter {
       <div class="validation-message">${this.escapeHtml(validation.message)}</div>
     </div>
     `;
+  }
+
+  /**
+   * Get compressed image path for HTML report
+   */
+  private static getCompressedImagePath(originalPath: string, reportDir: string, compressedDir: string): string {
+    if (!originalPath) return '';
+
+    const filename = path.basename(originalPath);
+    const compressedFilename = filename.replace('.png', '.jpg');
+    const compressedPath = path.join(compressedDir, compressedFilename);
+
+    return path.relative(reportDir, compressedPath).replace(/\\/g, '/');
   }
 
   /**

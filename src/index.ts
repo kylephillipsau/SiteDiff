@@ -77,7 +77,7 @@ program
       }
 
       if (config.output.htmlReport) {
-        const htmlPath = HtmlReporter.generate(results, config.output.directory);
+        const htmlPath = await HtmlReporter.generate(results, config.output.directory);
         console.log(chalk.green(`✓ HTML report: ${htmlPath}`));
       }
 
