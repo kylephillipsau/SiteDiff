@@ -1,28 +1,18 @@
 {
-  "sourceServer": {
-    "ip": "192.168.1.100",
-    "port": 80,
-    "protocol": "http"
-  },
-  "destinationServer": {
-    "ip": "192.168.1.101",
-    "port": 80,
-    "protocol": "http"
-  },
+  "_comment": "Example configuration for creating a baseline from live sites (BEFORE migration)",
+  "mode": "baseline",
+  "baselineDir": "./baselines",
   "domains": [
     {
       "domain": "example.com",
-      "user": "exampleuser",
       "enabled": true
     },
     {
       "domain": "example2.com",
-      "user": "example2user",
       "enabled": true
     },
     {
       "domain": "example3.com",
-      "user": "example3user",
       "enabled": false
     }
   ],

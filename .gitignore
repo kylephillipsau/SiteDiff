@@ -11,7 +11,14 @@ dist/
 output/
 reports/
 screenshots/
+baselines/
 *.log
+
+# User configs (keep examples)
+config/config.json
+config/config-*.json
+!config/config.example*.json
+!config/test-config.json
 
 # Environment variables
 .env
