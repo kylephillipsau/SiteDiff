@@ -30,14 +30,30 @@ export class ConfigLoader {
    * Validate configuration
    */
   static validate(config: SiteDiffConfig): SiteDiffConfig {
-    // Validate source server
-    if (!config.sourceServer || !config.sourceServer.ip) {
-      throw new Error('Source server configuration is missing or invalid');
-    }
+    const mode = config.mode || 'server-compare';
 
-    // Validate destination server
-    if (!config.destinationServer || !config.destinationServer.ip) {
-      throw new Error('Destination server configuration is missing or invalid');
+    // Validate servers based on mode
+    if (mode === 'server-compare') {
+      // Server-compare mode requires both servers
+      if (!config.sourceServer || !config.sourceServer.ip) {
+        throw new Error('Source server configuration is required for server-compare mode');
+      }
+      if (!config.destinationServer || !config.destinationServer.ip) {
+        throw new Error('Destination server configuration is required for server-compare mode');
+      }
+    } else if (mode === 'compare') {
+      // Compare mode only requires destination server (baseline is the source)
+      if (!config.destinationServer || !config.destinationServer.ip) {
+        throw new Error('Destination server configuration is required for compare mode');
+      }
+      if (!config.baselineDir) {
+        throw new Error('Baseline directory is required for compare mode');
+      }
+    } else if (mode === 'baseline') {
+      // Baseline mode doesn't require any servers (uses DNS)
+      if (!config.baselineDir) {
+        config.baselineDir = './baselines'; // Set default baseline directory
+      }
     }
 
     // Validate domains
@@ -77,11 +93,15 @@ export class ConfigLoader {
       throw new Error('Output directory must be specified');
     }
 
-    // Apply defaults
-    config.sourceServer.port = config.sourceServer.port || 80;
-    config.sourceServer.protocol = config.sourceServer.protocol || 'http';
-    config.destinationServer.port = config.destinationServer.port || 80;
-    config.destinationServer.protocol = config.destinationServer.protocol || 'http';
+    // Apply server defaults if they exist
+    if (config.sourceServer) {
+      config.sourceServer.port = config.sourceServer.port || 80;
+      config.sourceServer.protocol = config.sourceServer.protocol || 'http';
+    }
+    if (config.destinationServer) {
+      config.destinationServer.port = config.destinationServer.port || 80;
+      config.destinationServer.protocol = config.destinationServer.protocol || 'http';
+    }
     config.parallel = config.parallel || 1;
 
     // Apply crawler defaults
