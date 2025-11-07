@@ -93,7 +93,7 @@ export class PageDiscovery {
         }
       }
     } catch (error) {
-      logger.error(`Error crawling ${path}: ${error}`);
+      logger.warn(`Skipping ${path} due to error: ${error}`);
       // Continue crawling other pages
     }
   }
@@ -142,7 +142,7 @@ export class PageDiscovery {
 
       return links;
     } catch (error) {
-      logger.error(`Error extracting links: ${error}`);
+      logger.warn(`Could not extract links: ${error}`);
       return [];
     }
   }

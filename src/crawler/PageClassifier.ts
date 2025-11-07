@@ -56,7 +56,7 @@ export class PageClassifier {
 
       return content;
     } catch (error) {
-      logger.error(`Error getting page content: ${error}`);
+      logger.warn(`Could not extract page content: ${error}`);
       return '';
     }
   }
