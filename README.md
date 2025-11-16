@@ -18,6 +18,15 @@ A Playwright-based tool for validating cPanel migrations by comparing domains be
   - JSON report for automation and integration
 - **Parallel Processing**: Process multiple domains concurrently for faster validation
 
+## Documentation
+
+- **[README.md](./README.md)** - This file - User guide and quick start
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Architecture and design documentation for developers
+- **[API.md](./API.md)** - Complete API reference for all classes and methods
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Contribution guidelines and development workflow
+- **[examples/](./examples/)** - Practical examples and usage patterns
+- **[config/README.md](./config/README.md)** - Configuration file documentation
+
 ## Installation
 
 ### Prerequisites
