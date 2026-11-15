@@ -423,7 +423,7 @@ SiteDiff/
 
 ## License
 
-MIT
+MIT; see [LICENSE](LICENSE).
 
 ## Contributing
 
